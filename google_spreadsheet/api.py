@@ -71,10 +71,22 @@ class SpreadsheetAPI(object):
         """
         wks = self._get_client().GetWorksheetsFeed(
             key=spreadsheet_key)
-        return map(lambda e: (e.title.text, e.id.text.rsplit('/', 1)[1]),
+        return map(lambda e: dict(title=e.title.text, id=e.id.text.rsplit('/', 1)[1], row_count=e.row_count.text, col_count=e.col_count.text),
             wks.entry)
 
-    def get_worksheet(self, spreadsheet_key, worksheet_key):
+    def add_worksheet(self, spreadsheet_key, title, row_count=1, col_count=1):
+        """Add Worksheet.
+
+        :param title:
+            A string representing the title of the new worksheet.
+        :param row_count:
+            The initial number of rows for the new worksheet.
+        :param col_count:
+            The initial number of columns for the new worksheet.
+        """
+        return self._get_client().AddWorksheet(title, row_count, col_count, spreadsheet_key)
+
+    def get_worksheet(self, spreadsheet_key, worksheet_key, worksheet_rows, worksheet_cols):
         """Get Worksheet.
 
         :param spreadsheet_key:
@@ -82,13 +94,13 @@ class SpreadsheetAPI(object):
         :param worksheet_key:
             A string representing a google worksheet key.
         """
-        return Worksheet(self._get_client(), spreadsheet_key, worksheet_key)
+        return WorksheetAPI(self._get_client(), spreadsheet_key, worksheet_key, worksheet_rows, worksheet_cols)
 
 
-class Worksheet(object):
+class WorksheetAPI(object):
     """Worksheet wrapper class.
     """
-    def __init__(self, gd_client, spreadsheet_key, worksheet_key):
+    def __init__(self, gd_client, spreadsheet_key, worksheet_key, worksheet_rows, worksheet_cols):
         """Initialise a client
 
         :param gd_client:
@@ -105,6 +117,9 @@ class Worksheet(object):
         self.entries = None
         self.query = None
 
+        self.rows_count = worksheet_rows
+        self.cols_count = worksheet_cols
+
     def _row_to_dict(self, row):
         """Turn a row of values into a dictionary.
         :param row:
@@ -112,8 +127,9 @@ class Worksheet(object):
         :return:
             A dictionary with rows.
         """
-        result = dict([(key, row.custom[key].text) for key in row.custom])
-        result[ID_FIELD] = row.id.text.split('/')[-1]
+        result = []
+        for entry in row:
+            result[entry.title.text] = entry.inputValue
         return result
 
     def _get_row_entries(self, query=None):
@@ -123,7 +139,7 @@ class Worksheet(object):
             A rows entry.
         """
         if not self.entries:
-            self.entries = self.gd_client.GetListFeed(
+            self.entries = self.gd_client.GetCellsFeed(
                 query=query, **self.keys).entry
         return self.entries
 
@@ -139,7 +155,7 @@ class Worksheet(object):
         entry = [entry for entry in self._get_row_entries()
                  if entry.id.text.split('/')[-1] == id]
         if not entry:
-            entry = self.gd_client.GetListFeed(row_id=id, **self.keys).entry
+            entry = self.gd_client.GetCellsFeed(row_id=id, **self.keys).entry
             if not entry:
                 raise WorksheetException("Row ID '{0}' not found.").format(id)
         return entry[0]
@@ -154,10 +170,10 @@ class Worksheet(object):
          A utility method to construct a query.
 
         :return:
-            A :class:`~,gdata.spreadsheet.service.ListQuery` or None.
+            A :class:`~,gdata.spreadsheet.service.CellsQuery` or None.
         """
         if query or order_by or reverse:
-            q = gdata.spreadsheet.service.ListQuery()
+            q = gdata.spreadsheet.service.CellQuery()
             if query:
                 q.sq = query
             if order_by:
