@@ -15,6 +15,7 @@
 # limitations under the License.
 import gdata.spreadsheet.service
 
+from pprint import pprint
 
 ID_FIELD = '__rowid__'
 
@@ -183,6 +184,28 @@ class WorksheetAPI(object):
             return q
         else:
             return None
+
+    def get_row(self, start_row=1, start_col=1, num_rows=1, num_cols=None):
+        # build our query
+        new_query = gdata.spreadsheet.service.CellQuery()
+        new_query.min_row = start_row
+        new_query.max_row = start_row + num_rows
+        new_query.min_col = start_col
+
+        if num_cols is None:
+            new_query.max_col = self.cols_count
+        else:
+            new_query.max_col = start_col + num_cols - 1
+
+        # empty the cache
+        self._flush_cache()
+
+        # retrieve the row
+        row = self._get_row_entries(query=new_query)
+        print row
+
+        # all done
+        return row
 
     def get_rows(self, query=None, order_by=None,
                  reverse=None, filter_func=None):
