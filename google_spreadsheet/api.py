@@ -128,9 +128,7 @@ class WorksheetAPI(object):
         :return:
             A dictionary with rows.
         """
-        result = []
-        for entry in row:
-            result[entry.title.text] = entry.inputValue
+        result = [x.cell.inputValue for x in row]
         return result
 
     def _get_row_entries(self, query=None):
@@ -185,11 +183,11 @@ class WorksheetAPI(object):
         else:
             return None
 
-    def get_row(self, start_row=1, start_col=1, num_rows=1, num_cols=None):
+    def get_row(self, start_row=1, start_col=1, num_cols=None):
         # build our query
         new_query = gdata.spreadsheet.service.CellQuery()
         new_query.min_row = start_row
-        new_query.max_row = start_row + num_rows
+        new_query.max_row = start_row
         new_query.min_col = start_col
 
         if num_cols is None:
@@ -202,7 +200,7 @@ class WorksheetAPI(object):
 
         # retrieve the row
         row = self._get_row_entries(query=new_query)
-        print row
+        row = self._row_to_dict(row)
 
         # all done
         return row
@@ -248,6 +246,9 @@ class WorksheetAPI(object):
         if filter_func:
             rows = filter(filter_func, rows)
         return rows
+
+    def update_cell(self, row_no, col_no, input_value):
+        self.gd_client.UpdateCell(row=row_no, col=col_no, inputValue=input_value, key=self.spreadsheet_key, wksht_id=self.worksheet_key)
 
     def update_row(self, row_data):
         """Update Row (By ID).
