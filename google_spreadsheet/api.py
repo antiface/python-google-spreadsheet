@@ -348,3 +348,13 @@ class WorksheetAPI(object):
         for entry in entries:
             self.gd_client.DeleteRow(entry)
         self._flush_cache()
+
+    def get_worksheet_entry(self):
+        worksheet_entry = self.gd_client.GetWorksheetsFeed(key=self.spreadsheet_key, wksht_id=self.worksheet_key)
+        return worksheet_entry
+
+    def update_worksheet_entry(self, worksheet_entry):
+        # push the new entry back up to Google
+        self.gd_client.UpdateWorksheet(worksheet_entry)
+
+# all done
